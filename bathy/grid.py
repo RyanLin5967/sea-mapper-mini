@@ -35,17 +35,12 @@ def idw_grid(pts: List[Tuple[float, float, float]], cell: float = 2.0,
 
     # Vectorise across a whole grid row at once (all columns x all samples), keeping one
     # row in memory rather than the full cells x samples matrix.
+    eps = 1e-6  # distance floor (m): a node on a sounding gets a dominating finite weight
     for j, yy in enumerate(gy):
         dx = gx[:, None] - px[None, :]          # (ncols, npts)
         dy = yy - py
         d = np.hypot(dx, dy[None, :])
-        zero = d == 0.0
-        d[zero] = 1.0                            # avoid 1/0; overwritten below
+        np.maximum(d, eps, out=d)               # no 1/0, no overflow from tiny distances
         w = 1.0 / d ** power
-        row = (w @ pz) / w.sum(axis=1)
-        if zero.any():                           # exact hits take that sounding's depth
-            hit_cols = np.where(zero.any(axis=1))[0]
-            first = np.argmax(zero[hit_cols], axis=1)
-            row[hit_cols] = pz[first]
-        z[j, :] = row
+        z[j, :] = (w @ pz) / w.sum(axis=1)
     return Grid(gx, gy, z)
