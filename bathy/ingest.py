@@ -16,7 +16,8 @@ class Sounding:
 
 _LAT_KEYS = {"latitude", "lat"}
 _LON_KEYS = {"longitude", "lon", "lng", "long"}
-_DEPTH_KEYS = {"depth", "depth_m", "depth(m)"}
+_DEPTH_KEYS = {"depth", "depth_m", "depth(m)", "depth (m)"}
+_TEMP_KEYS = {"temperature", "temp", "temp_c", "water_temp"}
 
 
 def _pick(header, keys):
@@ -46,15 +47,30 @@ def load_csv(path: str) -> List[Sounding]:
         ilat = _pick(header, _LAT_KEYS)
         ilon = _pick(header, _LON_KEYS)
         idep = _pick(header, _DEPTH_KEYS)
+        itmp = _pick(header, _TEMP_KEYS)
         if ilat is None or ilon is None or idep is None:
             raise ValueError(f"{path}: need latitude, longitude, depth columns")
         for row in reader:
             if len(row) <= max(ilat, ilon, idep):
                 continue
-            depth = float(row[idep])
+            try:
+                lat = float(row[ilat]); lon = float(row[ilon]); depth = float(row[idep])
+            except ValueError:
+                continue
             # The sonar logs depth 0.0 when it has no bottom lock; those pings are not
             # real soundings and pull the interpolated surface shallow. Drop them.
             if depth <= 0.0:
                 continue
-            out.append(Sounding(float(row[ilat]), float(row[ilon]), depth))
+            temp = None
+            if itmp is not None and itmp < len(row):
+                try:
+                    temp = float(row[itmp])
+                except ValueError:
+                    temp = None
+            out.append(Sounding(lat, lon, depth, temp))
     return out
+
+
+def load(path: str) -> List[Sounding]:
+    """Load soundings, dispatching on file extension."""
+    return load_csv(path)

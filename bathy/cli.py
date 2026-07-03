@@ -8,7 +8,7 @@ from . import contour, geo, grid, ingest
 
 
 def cmd_contour(args) -> int:
-    soundings = ingest.load_csv(args.log)
+    soundings = ingest.load(args.log)
     _, pts = geo.project_all(soundings)
     g = grid.idw_grid(pts, cell=args.cell)
     contour.plot(g, step=args.step, out=args.out)
