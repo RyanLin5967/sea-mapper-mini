@@ -33,13 +33,19 @@ def idw_grid(pts: List[Tuple[float, float, float]], cell: float = 2.0,
     py = np.array([p[1] for p in pts])
     pz = np.array([p[2] for p in pts])
 
+    # Vectorise across a whole grid row at once (all columns x all samples), keeping one
+    # row in memory rather than the full cells x samples matrix.
     for j, yy in enumerate(gy):
-        for i, xx in enumerate(gx):
-            d = np.hypot(px - xx, py - yy)
-            hit = np.where(d == 0.0)[0]
-            if hit.size:
-                z[j, i] = pz[hit[0]]
-                continue
-            w = 1.0 / d ** power
-            z[j, i] = np.sum(w * pz) / np.sum(w)
+        dx = gx[:, None] - px[None, :]          # (ncols, npts)
+        dy = yy - py
+        d = np.hypot(dx, dy[None, :])
+        zero = d == 0.0
+        d[zero] = 1.0                            # avoid 1/0; overwritten below
+        w = 1.0 / d ** power
+        row = (w @ pz) / w.sum(axis=1)
+        if zero.any():                           # exact hits take that sounding's depth
+            hit_cols = np.where(zero.any(axis=1))[0]
+            first = np.argmax(zero[hit_cols], axis=1)
+            row[hit_cols] = pz[first]
+        z[j, :] = row
     return Grid(gx, gy, z)
