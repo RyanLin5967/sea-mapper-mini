@@ -41,5 +41,10 @@ def load_csv(path: str) -> List[Sounding]:
         for row in reader:
             if len(row) <= max(ilat, ilon, idep):
                 continue
-            out.append(Sounding(float(row[ilat]), float(row[ilon]), float(row[idep])))
+            depth = float(row[idep])
+            # The sonar logs depth 0.0 when it has no bottom lock; those pings are not
+            # real soundings and pull the interpolated surface shallow. Drop them.
+            if depth <= 0.0:
+                continue
+            out.append(Sounding(float(row[ilat]), float(row[ilon]), depth))
     return out
