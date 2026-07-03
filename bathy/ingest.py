@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -71,6 +72,32 @@ def load_csv(path: str) -> List[Sounding]:
     return out
 
 
+def load_gpx(path: str) -> List[Sounding]:
+    """Parse a GPX track; depth comes from a <depth> extension on each point."""
+    out: List[Sounding] = []
+    root = ET.parse(path).getroot()
+    for el in root.iter():  # strip namespaces so tags match plainly
+        el.tag = el.tag.rsplit("}", 1)[-1]
+    for pt in root.iter("trkpt"):
+        try:
+            lat = float(pt.attrib["lat"]); lon = float(pt.attrib["lon"])
+        except (KeyError, ValueError):
+            continue
+        d = pt.find(".//depth")
+        if d is None or d.text is None:
+            continue
+        try:
+            depth = float(d.text)
+        except ValueError:
+            continue
+        if depth <= 0.0:
+            continue
+        out.append(Sounding(lat, lon, depth))
+    return out
+
+
 def load(path: str) -> List[Sounding]:
     """Load soundings, dispatching on file extension."""
+    if path.lower().endswith(".gpx"):
+        return load_gpx(path)
     return load_csv(path)
