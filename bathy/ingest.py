@@ -26,10 +26,20 @@ def _pick(header, keys):
     return None
 
 
+def _sniff_delimiter(sample: str) -> str:
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
+    except csv.Error:
+        # Fall back to whichever common delimiter appears most in the header.
+        return max(",;\t", key=sample.splitlines()[0].count) if sample else ","
+
+
 def load_csv(path: str) -> List[Sounding]:
     out: List[Sounding] = []
     with open(path, newline="") as f:
-        reader = csv.reader(f)
+        delim = _sniff_delimiter(f.read(4096))
+        f.seek(0)
+        reader = csv.reader(f, delimiter=delim)
         header = next(reader, None)
         if header is None:
             raise ValueError(f"{path}: empty file")
