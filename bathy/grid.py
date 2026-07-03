@@ -36,6 +36,10 @@ def idw_grid(pts: List[Tuple[float, float, float]], cell: float = 2.0,
     for j, yy in enumerate(gy):
         for i, xx in enumerate(gx):
             d = np.hypot(px - xx, py - yy)
+            hit = np.where(d == 0.0)[0]
+            if hit.size:
+                z[j, i] = pz[hit[0]]
+                continue
             w = 1.0 / d ** power
             z[j, i] = np.sum(w * pz) / np.sum(w)
     return Grid(gx, gy, z)
