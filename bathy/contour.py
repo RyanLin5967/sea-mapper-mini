@@ -20,6 +20,7 @@ def plot(grid: Grid, step: float = 1.0, out: Optional[str] = None):
 
     fig, ax = plt.subplots(figsize=(8, 6))
     cf = ax.contourf(grid.x, grid.y, grid.z, levels=levels, cmap="viridis_r")
+    ax.set_aspect("equal")  # 1 m east == 1 m north, or the shape is distorted
     ax.set_xlabel("east (m)")
     ax.set_ylabel("north (m)")
     fig.colorbar(cf, ax=ax, label="depth (m)")
