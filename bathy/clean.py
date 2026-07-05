@@ -17,8 +17,11 @@ def despike(soundings: List[Sounding], k: int = 3, thresh: float = 2.0) -> List[
     with that median. `k` is the half-window (points on each side)."""
     depths = [s.depth_m for s in soundings]
     out: List[Sounding] = []
+    n = len(depths)
     for i, s in enumerate(soundings):
-        window = depths[i - k:i + k + 1]
+        # Clamp the window to [0, n); a bare depths[i-k:...] uses a negative start index
+        # near the track start, which wraps to the end (or returns an empty slice).
+        window = depths[max(0, i - k):min(n, i + k + 1)]
         m = median(window)
         if abs(s.depth_m - m) > thresh:
             out.append(Sounding(s.lat, s.lon, m, s.temp_c))
