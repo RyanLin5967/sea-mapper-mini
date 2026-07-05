@@ -8,7 +8,8 @@ import numpy as np
 from .grid import Grid
 
 
-def plot(grid: Grid, step: float = 1.0, out: Optional[str] = None):
+def plot(grid: Grid, step: float = 1.0, out: Optional[str] = None,
+         soundings_xy: Optional[List[Tuple[float, float]]] = None):
     import matplotlib
     if out:
         matplotlib.use("Agg")
@@ -25,6 +26,10 @@ def plot(grid: Grid, step: float = 1.0, out: Optional[str] = None):
 
     fig, ax = plt.subplots(figsize=(8, 6))
     cf = ax.contourf(grid.x, grid.y, grid.z, levels=levels, cmap="viridis_r")
+    ax.contour(grid.x, grid.y, grid.z, levels=levels, colors="k", linewidths=0.3)
+    if soundings_xy:
+        ax.plot([p[0] for p in soundings_xy], [p[1] for p in soundings_xy],
+                ".", ms=1.5, color="white", alpha=0.4)
     ax.set_aspect("equal")  # 1 m east == 1 m north, or the shape is distorted
     ax.set_xlabel("east (m)")
     ax.set_ylabel("north (m)")

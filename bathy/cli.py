@@ -18,7 +18,8 @@ def cmd_contour(args) -> int:
         return 2
     _, pts = geo.project_all(soundings)
     g = grid.idw_grid(pts, cell=args.cell)
-    contour.plot(g, step=args.step, out=args.out)
+    xy = [(x, y) for x, y, _ in pts]
+    contour.plot(g, step=args.step, out=args.out, soundings_xy=xy)
     print(f"{len(soundings)} soundings")
     return 0
 
