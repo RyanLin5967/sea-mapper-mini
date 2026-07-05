@@ -27,6 +27,15 @@ def projector(ref_lat: float, ref_lon: float) -> Callable[[float, float], Tuple[
     return to_xy
 
 
+def unprojector(ref_lat: float, ref_lon: float) -> Callable[[float, float], Tuple[float, float]]:
+    """Inverse of projector: (x_east, y_north) metres -> (lon, lat)."""
+    def to_lonlat(x: float, y: float) -> Tuple[float, float]:
+        lon = ref_lon + math.degrees(x / _R)
+        lat = ref_lat + math.degrees(y / _R)
+        return lon, lat
+    return to_lonlat
+
+
 def project_all(soundings: List[Sounding]):
     ref_lat, ref_lon = reference(soundings)
     to_xy = projector(ref_lat, ref_lon)

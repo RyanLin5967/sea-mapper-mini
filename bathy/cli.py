@@ -16,10 +16,13 @@ def cmd_contour(args) -> int:
     if not soundings:
         print(f"{args.log}: no soundings after filtering", file=sys.stderr)
         return 2
-    _, pts = geo.project_all(soundings)
+    ref, pts = geo.project_all(soundings)
     g = grid.idw_grid(pts, cell=args.cell)
     xy = [(x, y) for x, y, _ in pts]
     contour.plot(g, step=args.step, out=args.out, soundings_xy=xy)
+    if args.geojson:
+        contour.to_geojson(g, args.step, geo.unprojector(*ref), args.geojson)
+        print(f'wrote {args.geojson}')
     print(f"{len(soundings)} soundings")
     return 0
 
@@ -34,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--cell", type=float, default=2.0)
     c.add_argument("--despike", action="store_true", help="median-despike the track")
     c.add_argument("--min-depth", type=float, default=None, help="drop depths below this (m)")
+    c.add_argument("--geojson", help="also export contour lines as GeoJSON")
     c.set_defaults(func=cmd_contour)
     return ap
 

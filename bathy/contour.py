@@ -1,7 +1,8 @@
 """Render a gridded depth surface as a contour map."""
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+import json
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
@@ -39,3 +40,38 @@ def plot(grid: Grid, step: float = 1.0, out: Optional[str] = None,
         plt.close(fig)
         return out
     plt.show()
+
+
+def to_geojson(grid: Grid, step: float, unproject: Callable[[float, float], Tuple[float, float]],
+               out: str) -> str:
+    """Export contour lines as GeoJSON LineStrings in lon/lat.
+
+    `unproject` maps (x_east, y_north) metres -> (lon, lat).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    lo = np.floor(np.nanmin(grid.z) / step) * step
+    hi = np.ceil(np.nanmax(grid.z) / step) * step
+    if hi <= lo:
+        hi = lo + step
+    levels = np.arange(lo, hi + step, step)
+
+    fig, ax = plt.subplots()
+    cs = ax.contour(grid.x, grid.y, grid.z, levels=levels)
+    features = []
+    for level, segs in zip(cs.levels, cs.allsegs):
+        for seg in segs:
+            coords = [list(unproject(x, y)) for x, y in seg]
+            if len(coords) < 2:
+                continue
+            features.append({
+                "type": "Feature",
+                "properties": {"depth_m": float(level)},
+                "geometry": {"type": "LineString", "coordinates": coords},
+            })
+    plt.close(fig)
+    with open(out, "w") as f:
+        json.dump({"type": "FeatureCollection", "features": features}, f)
+    return out
