@@ -40,7 +40,9 @@ def idw_grid(pts: List[Tuple[float, float, float]], cell: float = 2.0,
         dx = gx[:, None] - px[None, :]          # (ncols, npts)
         dy = yy - py
         d = np.hypot(dx, dy[None, :])
-        np.maximum(d, eps, out=d)               # no 1/0, no overflow from tiny distances
+        np.maximum(d, eps, out=d)               # no 1/0 at coincident nodes
         w = 1.0 / d ** power
-        z[j, :] = (w @ pz) / w.sum(axis=1)
+        # Use an elementwise reduction, not `w @ pz`: numpy's matmul emits spurious
+        # divide/overflow fp-flag warnings here even though the result is correct.
+        z[j, :] = (w * pz[None, :]).sum(axis=1) / w.sum(axis=1)
     return Grid(gx, gy, z)
