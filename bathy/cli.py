@@ -4,7 +4,9 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import clean, contour, geo, grid, ingest
+import math
+
+from . import clean, contour, geo, grid, ingest, mission, survey
 
 
 def cmd_contour(args) -> int:
@@ -27,6 +29,38 @@ def cmd_contour(args) -> int:
     return 0
 
 
+def _corner(s):
+    lat, lon = (float(v) for v in s.split(","))
+    return lat, lon
+
+
+def cmd_survey(args) -> int:
+    wps = survey.plan_latlon(_corner(args.corner_a), _corner(args.corner_b), spacing=args.spacing)
+    print(f"{len(wps)} waypoints, {len(wps)//2} lines, {args.spacing} m spacing")
+    for lat, lon in wps:
+        print(f"{lat:.6f},{lon:.6f}")
+    return 0
+
+
+def cmd_run(args) -> int:
+    wps = survey.plan_latlon(_corner(args.corner_a), _corner(args.corner_b), spacing=args.spacing)
+    a, b = _corner(args.corner_a), _corner(args.corner_b)
+    clat, clon = (a[0]+b[0])/2, (a[1]+b[1])/2
+    if args.sim:
+        def depth_fn(lat, lon):
+            dn = (lat-clat)*111000.0
+            de = (lon-clon)*111000.0*math.cos(math.radians(clat))
+            return max(0.3, 10.0 - 0.0005*(dn*dn+de*de))
+        from .boat import SimBoat
+        boat = SimBoat(lat=wps[0][0], lon=wps[0][1], depth_fn=depth_fn)
+    else:
+        from .boat import SerialBoat
+        boat = SerialBoat(args.port, baud=args.baud)
+    n = mission.run_mission(boat, wps, out_csv=args.out, arrival_radius=args.arrival)
+    print(f"logged {n} soundings to {args.out}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="bathy")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -39,6 +73,20 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--min-depth", type=float, default=None, help="drop depths below this (m)")
     c.add_argument("--geojson", help="also export contour lines as GeoJSON")
     c.set_defaults(func=cmd_contour)
+
+    s = sub.add_parser("survey", help="plan survey lines over a rectangle")
+    s.add_argument("corner_a"); s.add_argument("corner_b")
+    s.add_argument("--spacing", type=float, default=10.0)
+    s.set_defaults(func=cmd_survey)
+
+    r = sub.add_parser("run", help="run an autonomous survey, logging soundings")
+    r.add_argument("corner_a"); r.add_argument("corner_b")
+    r.add_argument("--spacing", type=float, default=10.0)
+    r.add_argument("--arrival", type=float, default=3.0)
+    r.add_argument("--out", default="mission_log.csv")
+    r.add_argument("--sim", action="store_true")
+    r.add_argument("--port"); r.add_argument("--baud", type=int, default=57600)
+    r.set_defaults(func=cmd_run)
     return ap
 
 
