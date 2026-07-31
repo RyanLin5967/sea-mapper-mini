@@ -29,8 +29,10 @@ def projector(ref_lat: float, ref_lon: float) -> Callable[[float, float], Tuple[
 
 def unprojector(ref_lat: float, ref_lon: float) -> Callable[[float, float], Tuple[float, float]]:
     """Inverse of projector: (x_east, y_north) metres -> (lon, lat)."""
+    cos_lat = math.cos(math.radians(ref_lat))
+
     def to_lonlat(x: float, y: float) -> Tuple[float, float]:
-        lon = ref_lon + math.degrees(x / _R)
+        lon = ref_lon + math.degrees(x / (_R * cos_lat))
         lat = ref_lat + math.degrees(y / _R)
         return lon, lat
     return to_lonlat
