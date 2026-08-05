@@ -74,7 +74,9 @@ class WaypointFollower:
             slat, slon = self.waypoints[self._i - 1]
             xte = cross_track(slat, slon, tlat, tlon, lat, lon)
 
-        rudder = max(-1.0, min(1.0, self.kp * error + self.kx * xte))
+        # Subtract: a positive (right-of-track) cross-track error needs left rudder to
+        # steer back onto the line.
+        rudder = max(-1.0, min(1.0, self.kp * error - self.kx * xte))
         return Command(self.cruise, rudder)
 
     @property
