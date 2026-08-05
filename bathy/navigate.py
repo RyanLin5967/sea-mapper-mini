@@ -44,12 +44,14 @@ class WaypointFollower:
         if self._i >= len(self.waypoints):
             return Command(0.0, 0.0, done=True)
 
-        tlat, tlon = self.waypoints[self._i]
-        if haversine(lat, lon, tlat, tlon) <= self.arrival_radius:
+        # Advance past every waypoint already within the arrival radius, not just one per
+        # update — otherwise coincident/overshot waypoints stall progress for many ticks.
+        while (self._i < len(self.waypoints)
+               and haversine(lat, lon, *self.waypoints[self._i]) <= self.arrival_radius):
             self._i += 1
-            if self._i >= len(self.waypoints):
-                return Command(0.0, 0.0, done=True)
-            tlat, tlon = self.waypoints[self._i]
+        if self._i >= len(self.waypoints):
+            return Command(0.0, 0.0, done=True)
+        tlat, tlon = self.waypoints[self._i]
 
         target = bearing(lat, lon, tlat, tlon)
         # Wrap into [-180, 180]; crossing the 0/360 boundary (heading 350, target 010)
