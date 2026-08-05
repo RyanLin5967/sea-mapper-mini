@@ -25,6 +25,15 @@ def bearing(lat1, lon1, lat2, lon2) -> float:
     return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
 
+def cross_track(slat, slon, elat, elon, lat, lon) -> float:
+    """Signed distance (m) of (lat, lon) from the great-circle line start->end.
+    Positive = right of the track direction."""
+    d13 = haversine(slat, slon, lat, lon) / _R
+    t13 = math.radians(bearing(slat, slon, lat, lon))
+    t12 = math.radians(bearing(slat, slon, elat, elon))
+    return math.asin(math.sin(d13) * math.sin(t13 - t12)) * _R
+
+
 @dataclass
 class Command:
     throttle: float
@@ -36,7 +45,8 @@ class Command:
 class WaypointFollower:
     waypoints: List[Tuple[float, float]]
     arrival_radius: float = 3.0
-    kp: float = 0.02
+    kp: float = 0.02      # rudder per degree of heading error
+    kx: float = 0.05      # rudder per metre of cross-track error
     cruise: float = 0.6
     _i: int = field(default=0)
 
@@ -57,7 +67,14 @@ class WaypointFollower:
         # Wrap into [-180, 180]; crossing the 0/360 boundary (heading 350, target 010)
         # otherwise gives a ~-340 error and a hard turn the long way round.
         error = (target - heading + 180.0) % 360.0 - 180.0
-        rudder = max(-1.0, min(1.0, self.kp * error))
+
+        # Cross-track correction: steer back toward the line from the previous waypoint.
+        xte = 0.0
+        if self._i > 0:
+            slat, slon = self.waypoints[self._i - 1]
+            xte = cross_track(slat, slon, tlat, tlon, lat, lon)
+
+        rudder = max(-1.0, min(1.0, self.kp * error + self.kx * xte))
         return Command(self.cruise, rudder)
 
     @property
