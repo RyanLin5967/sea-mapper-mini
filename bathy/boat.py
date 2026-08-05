@@ -50,3 +50,37 @@ class SimBoat(BoatLink):
     def state(self):
         depth = self.depth_fn(self.lat, self.lon) if self.depth_fn else None
         return self.lat, self.lon, self.heading, depth
+
+
+class SerialBoat(BoatLink):
+    """Talk to the RC boat over serial.
+
+    Commands go out as `D,<throttle>,<rudder>\n`; the boat's firmware emits state lines
+    `S,<lat>,<lon>,<heading>,<depth>`.
+    """
+
+    def __init__(self, port: str, baud: int = 57600, timeout: float = 1.0):
+        import serial  # pyserial
+        self._ser = serial.Serial(port, baud, timeout=timeout)
+        self._last: Tuple[float, float, float, Optional[float]] = (0.0, 0.0, 0.0, None)
+
+    def drive(self, cmd: Command) -> None:
+        self._ser.write(f"D,{cmd.throttle:.3f},{cmd.rudder:.3f}\n".encode("ascii"))
+
+    def state(self):
+        raw = self._ser.readline().decode("ascii", "ignore").strip()
+        if raw.startswith("S,"):
+            parts = raw.split(",")
+            try:
+                lat = float(parts[1]); lon = float(parts[2]); hdg = float(parts[3])
+                depth = float(parts[4]) if len(parts) > 4 and parts[4] else None
+                self._last = (lat, lon, hdg, depth)
+            except (ValueError, IndexError):
+                pass
+        return self._last
+
+    def close(self) -> None:
+        try:
+            self.drive(Command(0.0, 0.0))
+        finally:
+            self._ser.close()
