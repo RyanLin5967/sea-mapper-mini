@@ -52,7 +52,9 @@ class WaypointFollower:
             tlat, tlon = self.waypoints[self._i]
 
         target = bearing(lat, lon, tlat, tlon)
-        error = target - heading
+        # Wrap into [-180, 180]; crossing the 0/360 boundary (heading 350, target 010)
+        # otherwise gives a ~-340 error and a hard turn the long way round.
+        error = (target - heading + 180.0) % 360.0 - 180.0
         rudder = max(-1.0, min(1.0, self.kp * error))
         return Command(self.cruise, rudder)
 
